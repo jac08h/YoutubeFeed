@@ -2,9 +2,9 @@ from settings_api import Settings
 import youtube_feed as yf
 
 import sys
+import os
 import datetime as dt
 
-from urllib.parse import urlparse
 from PyQt4 import QtCore, QtGui, uic
 
 __author__ = 'KPGM'
@@ -17,8 +17,7 @@ class MainWindow(QtGui.QMainWindow, form_main):
         QtGui.QMainWindow.__init__(self, parent)
         self.setupUi(self)
 
-        self.settings = Settings()
-        self.channels = yf.process_file('subscription_manager.xml')
+        self.settings = Settings(find_data_file('settings.json'))
         self.videos = {}
 
         self.trv_Video_Feed_Model = QtGui.QStandardItemModel(self.trv_Video_Feed_View)
@@ -27,8 +26,6 @@ class MainWindow(QtGui.QMainWindow, form_main):
         self.refresh_date()
         self.setup_treeview()
         self.connect_components()
-
-        self.act_check_feed_triggered()
 
     def reset_treeview_model(self):
         self.trv_Video_Feed_Model.clear()
@@ -65,7 +62,7 @@ class MainWindow(QtGui.QMainWindow, form_main):
             error_message("No Last Checked Date.\nCheck settings.json file.")
 
         self.reset_treeview_model()
-        self.videos = yf.process_feed_from(api_key, last_checked_date, self.channels)
+        self.videos = yf.process_feed_from(api_key, last_checked_date, yf.process_file(find_data_file('subscription_manager.xml')))
 
         for publish_date in sorted(self.videos):
             date = QtGui.QStandardItem(dt.datetime.strptime(publish_date, '%Y-%m-%d').strftime('%m/%d/%y'))
@@ -120,6 +117,18 @@ def error_message(err_msg):
     msg.setStandardButtons(QtGui.QMessageBox.Ok)
 
     msg.exec_()
+
+
+def find_data_file(filename):
+    if getattr(sys, 'frozen', False):
+        # The application is frozen
+        data_dir = os.path.dirname(sys.executable)
+    else:
+        # The application is not frozen
+        # Change this bit to match where you store your data files:
+        data_dir = os.path.dirname(__file__)
+
+    return os.path.join(data_dir, filename)
 
 
 def main():

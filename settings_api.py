@@ -1,4 +1,5 @@
 import json
+import sys
 import os
 import datetime as dt
 
@@ -6,11 +7,11 @@ __author__ = 'Gareth Mok'
 
 
 class Settings:
-    def __init__(self):
+    def __init__(self, settings_file):
         """
         Settings file for YoutubeFeed application
         """
-        self.filepath = 'settings.json'
+        self.filepath = settings_file
         self.data = {}
 
         if os.path.isfile(self.filepath):
@@ -51,7 +52,15 @@ class Settings:
         """
         :return: Client Secret File Name
         """
-        return self.data['Client Secret File']
+        if getattr(sys, 'frozen', False):
+            # The application is frozen
+            data_dir = os.path.dirname(sys.executable)
+        else:
+            # The application is not frozen
+            # Change this bit to match where you store your data files:
+            data_dir = os.path.dirname(__file__)
+
+        return os.path.join(data_dir, self.data['Client Secret File'])
 
     def get_last_checked(self):
         """
