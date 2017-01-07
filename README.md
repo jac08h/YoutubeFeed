@@ -5,6 +5,7 @@ You have to obtain your own Youtube API key to use this program.
 # How to Use
 1. Clone/download repository
 2. In "channels.txt" write YT channels you want to "subscribe" to.
+3. In "youtube_feed.py" write your Youtube API key on 7th line(apiKey="YOUR_KEY")
 3. Run youtube_feed.py
 
 ## Example output
