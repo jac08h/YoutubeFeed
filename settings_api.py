@@ -11,14 +11,15 @@ class Settings:
         Settings file for YoutubeFeed application
         """
         self.filepath = 'settings.json'
-        self.data = {'API Key': '', 'Last Checked': str(dt.date.today())}
+        self.data = {}
 
         if os.path.isfile(self.filepath):
             self.read()
-            if not all(key in self.data.keys() for key in ('API Key', 'Last Checked')):
-                self.data = {'API Key': '', 'Last Checked': str(dt.date.today())}
+            if not all(key in self.data.keys() for key in ('API Key', 'Client Secret File', 'Last Checked')):
+                self.data = {'API Key': '', 'Client Secrets File': '', 'Last Checked': str(dt.date.today())}
                 self.write()
         else:
+            self.data = {'API Key': '', 'Last Checked': str(dt.date.today())}
             self.write()
 
     def new(self):
@@ -40,6 +41,12 @@ class Settings:
         :return: Youtube API key string
         """
         return self.data['API Key']
+
+    def get_client_secrets_file(self):
+        """
+        :return: Client Secret File Name
+        """
+        return self.data['Client Secret File']
 
     def get_last_checked(self):
         """

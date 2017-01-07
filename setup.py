@@ -22,8 +22,8 @@ if sys.platform == 'win32':
 
 options = {
     'build_exe': {
-        'includes': ['atexit', 'cx_Freeze', 'datetime', 'json', 'os', 'urllib', 're', 'xml'],
-        'include_files': ['subscription_manager.xml', 'settings.json'],
+        'includes': ['atexit', 'cx_Freeze', 'datetime', 'googleapiclient', 'json', 'os', 'urllib', 'xml'],
+        'include_files': ['README.md', 'client_secret.json', 'main.ui', 'settings.json', 'subscription_manager.xml']
     }
 }
 

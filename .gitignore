@@ -4,8 +4,8 @@ build/
 *$py.class
 *.bak
 .idea
+*.json
+*.xml
 test.py
 my_youtube_api.py
 my_youtube_feed.py
-settings.json
-subscription_manager.xml

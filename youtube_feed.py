@@ -1,4 +1,3 @@
-from settings_api import Settings
 import youtube_api as ya
 
 import datetime as dt
@@ -9,11 +8,9 @@ from urllib.parse import urlparse
 
 def process_file(subscription_feed):
     """
-    returns tuple(
-        datetime object,
-        dictionary - channel:id
-        )
-
+    Given a Youtube Subscription Manager RSS XML file, return a dictionary of the channel names and IDs
+    :param subscription_feed: file name of the subscription feed within the working folder
+    :return: { Channel Name : Channel ID }
     """
     channels = {}
     with open(subscription_feed, mode='r', encoding="utf8") as readfile:
@@ -24,39 +21,57 @@ def process_file(subscription_feed):
     return channels
 
 
-def main():
-    if not ya.apiKey or ya.apiKey.isspace():
-        raise ValueError("Youtube API key missing.")
+def process_feed_from(api_key, date, channels):
+    """
+    Gets all the videos from the channels given
+    :param api_key: String with the Youtube API key
+    :param date: datetime object with the starting date in the past
+    :param channels: Dictionary in format - { channel name : channel id }
+    :return: dictionary of format
+        {
+            Publish Date : {
+                Channel Name: {
+                    Video Title : Video URL
+                }
+            }
+        }
+    """
 
-    settings = Settings()
-    date = dt.datetime.strptime(settings.get_last_checked(), '%Y-%m-%d')
-    print("Last checked: {}".format(date.strftime("%H:%M  %d.%m.%Y")))
-
-    channels = process_file("subscription_manager.xml")
-    for channelName, chId in sorted(channels.items()):  # alphabetical order
+    date = dt.datetime.strptime(date, '%Y-%m-%d')
+    video_list = {}
+    for channel_name, chId in sorted(channels.items()):  # alphabetical order
         # create Channel objects for every channel, assign an ID unless explicitly specified in file
-        if chId == 0:
-            chan = ya.Channel(channelName)
-            chan.set_channel_id()
-        else:
-            chan = ya.Channel(channelName, channel_id=chId)
+        chan = ya.Channel(api_key, channel_name, channel_id=chId)
 
-        print("\n" + "*" * 40 + " \n{}\n".format(channelName) + "*" * 40)
         videos = chan.get_videos_since(date)
         for videoId in videos:
-            vid = ya.Video(videoId)
+            vid = ya.Video(api_key, videoId)
             data = vid.get_data()
-            try:
-                print("   {}\n   {} ; {}\n   {}\n   {}\n\n".format(data["title"], data["date"], data["duration"],
-                                                                   data["url"], data["description"].split("\n")[0]))
-            except:  # unicode error (not running in IDLE)
-                print("   {}\n   {}\n   {}\n    \n    -Unable to display more informtaion\n\n".format(data["date"],
-                                                                                                      data["duration"],
-                                                                                                      data["url"]))
-        if len(videos) == 0:
-            print("   No videos found in this time period :(\n")
-    settings.update_last_run(str(dt.date.today()))
-    i = input("\nPress enter to exit. ")
 
-if __name__ == "__main__":
-    main()
+            data['date'] = str(data['date'].date())
+            if data['date'] not in video_list:
+                video_list[data['date']] = {channel_name: {data["title"]: data["video id"]}}
+            else:
+                if channel_name not in video_list[data['date']]:
+                    video_list[data['date']][channel_name] = {data["title"]: data["video id"]}
+                else:
+                    video_list[data['date']][channel_name][data["title"]] = data["video id"]
+
+    return video_list
+
+
+def add_to_playlist(client_secret_file, playlist_id, video_id):
+    youtube_service = ya.YoutubeClientAPI(client_secret_file).get_authenticated_service()
+    add_video_request = youtube_service.playlistItems().insert(
+        part="snippet",
+        body={
+            'snippet': {
+                'playlistId': playlist_id,
+                'resourceId': {
+                    'kind': 'youtube#video',
+                    'videoId': video_id
+                }
+                # 'position': 0
+            }
+        }
+    ).execute()
