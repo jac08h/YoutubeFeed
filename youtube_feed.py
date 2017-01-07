@@ -1,10 +1,13 @@
-from youtube_api import *
-from os.path import getmtime
+from settings_api import Settings
+import youtube_api as ya
 
-FILENAME = "channels.txt"
+import datetime as dt
+
+from xml.etree import ElementTree
+from urllib.parse import urlparse
 
 
-def process_file(filename):
+def process_file(subscription_feed):
     """
     returns tuple(
         datetime object,
@@ -13,60 +16,47 @@ def process_file(filename):
 
     """
     channels = {}
-    last_modification = getmtime(FILENAME)
-    date = datetime.fromtimestamp(last_modification)
-    with open(FILENAME, "r") as f:
-        # 2016 12 17   19 29
-        # tuple to create datetime object
-        lines = f.readlines()
+    with open(subscription_feed, mode='r', encoding="utf8") as readfile:
+        root = ElementTree.parse(readfile).getroot()
+        for child in root[0][0]:
+            channels[child.attrib['title']] = urlparse(child.attrib['xmlUrl']).query[11:]
 
-        for line in lines:
-            try:  # explicit channel Id
-                channelName, channelId = line.strip().split(" ### ")
-                channels[channelName] = channelId
-            except:
-                channelName = line.strip()
-                channels[channelName] = 0
-
-    with open(FILENAME, "w") as f:
-        for line in lines:
-            f.write(line)
-
-    return date, channels
+    return channels
 
 
 def main():
-    if apiKey is None:
+    if not ya.apiKey or ya.apiKey.isspace():
         raise ValueError("Youtube API key missing.")
 
-    date, channels = process_file(FILENAME)
+    settings = Settings()
+    date = dt.datetime.strptime(settings.get_last_checked(), '%Y-%m-%d')
     print("Last checked: {}".format(date.strftime("%H:%M  %d.%m.%Y")))
+
+    channels = process_file("subscription_manager.xml")
     for channelName, chId in sorted(channels.items()):  # alphabetical order
         # create Channel objects for every channel, assign an ID unless explicitly specified in file
         if chId == 0:
-            chan = Channel(channelName)
-            chan.setChannelId()
+            chan = ya.Channel(channelName)
+            chan.set_channel_id()
         else:
-            chan = Channel(channelName, channelId=chId)
+            chan = ya.Channel(channelName, channel_id=chId)
 
         print("\n" + "*" * 40 + " \n{}\n".format(channelName) + "*" * 40)
-        videos = chan.getVideosSince(date)
+        videos = chan.get_videos_since(date)
         for videoId in videos:
-            vid = Video(videoId)
-            data = vid.getData()
+            vid = ya.Video(videoId)
+            data = vid.get_data()
             try:
-                print(
-                "   {}\n   {} ; {}\n   {}\n   {}\n\n".format(data["title"], data["date"], data["duration"], data["url"],
-                                                             data["description"].split("\n")[0]))
+                print("   {}\n   {} ; {}\n   {}\n   {}\n\n".format(data["title"], data["date"], data["duration"],
+                                                                   data["url"], data["description"].split("\n")[0]))
             except:  # unicode error (not running in IDLE)
                 print("   {}\n   {}\n   {}\n    \n    -Unable to display more informtaion\n\n".format(data["date"],
                                                                                                       data["duration"],
                                                                                                       data["url"]))
         if len(videos) == 0:
             print("   No videos found in this time period :(\n")
-
+    settings.update_last_run(str(dt.date.today()))
     i = input("\nPress enter to exit. ")
-
 
 if __name__ == "__main__":
     main()

@@ -1,11 +1,13 @@
+from settings_api import Settings
+
 import urllib.request
 import json
 import re
 from datetime import datetime, timedelta
 
-apiKey = None # Write your Youtube API key here
+settings = Settings()
+apiKey = settings.get_api_key()
 # https://www.slickremix.com/docs/get-api-key-for-youtube/
-
 
 youtubeApiUrl = "https://www.googleapis.com/youtube/v3"
 youtubeChannelsApiUrl = youtubeApiUrl + "/channels?key={0}&".format(apiKey)
@@ -13,17 +15,24 @@ youtubeSearchApiUrl = youtubeApiUrl + "/search?key={0}&".format(apiKey)
 youtubeVideoApi = youtubeApiUrl + "/videos?key={0}&".format(apiKey)
 
 requestParametersChannelId = youtubeChannelsApiUrl + 'forUsername={0}&part=id'
-requestChannelVideosInfo = youtubeSearchApiUrl + 'channelId={0}&part=id&order=date&type=video&publishedBefore={1}&publishedAfter={2}&pageToken={3}&maxResults=50'
+requestChannelVideosInfo = youtubeSearchApiUrl + 'channelId={0}&' \
+                                                 'part=id&' \
+                                                 'order=date&' \
+                                                 'type=video&' \
+                                                 'publishedBefore={1}&' \
+                                                 'publishedAfter={2}&' \
+                                                 'pageToken={3}&' \
+                                                 'maxResults=50'
 requestVideoInfo = youtubeVideoApi + "part=snippet&id={0}"
 requestVideoTime = youtubeVideoApi + "part=contentDetails&id={0}"
 
 
 class Channel:
-    def __init__(self, channelName, channelAlias=None, channelId=None):
+    def __init__(self, channel_name, channel_alias=None, channel_id=None):
 
-        self.channelName = channelName
-        self.channelAlias = channelAlias
-        self.channelId = channelId
+        self.channelName = channel_name
+        self.channelAlias = channel_alias
+        self.channelId = channel_id
 
     def __str__(self):
         return "Channel name:  {}\nChannel Alias:  {}\nChannelId:  {}".format(self.channelName,
@@ -35,85 +44,89 @@ class Channel:
                                                                               self.channelAlias,
                                                                               self.channelId)
 
-    def setChannelId(self):
+    def set_channel_id(self):
         try:
             url = requestParametersChannelId.format(self.channelName)
             resp = urllib.request.urlopen(url).read().decode("utf8")
 
-            jsonResp = json.loads(resp)
-            self.channelId = jsonResp["items"][0]["id"]
+            json_resp = json.loads(resp)
+            self.channelId = json_resp["items"][0]["id"]
         except KeyError:
             print("ERROR setting ID for channel: {}".format(self.channelName))
             self.channelId = "error"
 
-    def _getVideosBetween(self, sinceDate, toDate):
+    def _get_videos_between(self, from_date, to_date):
         """
         dates= datetime.datetime objects
+
+        :param from_date: Earliest date
+        :param to_date: Latest date
+        :return:
         """
         # format dates
-        sinceDate = sinceDate.strftime("%Y-%m-%dT%H:%M:%SZ")
-        toDate = toDate.strftime("%Y-%m-%dT%H:%M:%SZ")
+        from_date = from_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+        to_date = to_date.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-        nextPToken = ""
-        foundAll = False
+        next_page_token = ""
+        found_all = False
 
-        retVal = []
+        ret_val = []
 
-        while not foundAll:
+        while not found_all:
             try:
-                url = requestChannelVideosInfo.format(self.channelId, toDate, sinceDate, nextPToken)
+                url = requestChannelVideosInfo.format(self.channelId, to_date, from_date, next_page_token)
                 resp = urllib.request.urlopen(url).read().decode("utf8")
 
-                jsonResp = json.loads(resp)
-                returnedVideos = jsonResp["items"]
+                json_resp = json.loads(resp)
+                returned_videos = json_resp["items"]
 
-                for video in returnedVideos:
-                    retVal.append(video["id"]["videoId"])
+                for video in returned_videos:
+                    ret_val.append(video["id"]["videoId"])
 
                 try:
-                    nextPToken = jsonResp["nextPageToken"]
+                    next_page_token = json_resp["nextPageToken"]
 
                 except KeyError:  # no nextPageToken
-                    foundAll = True
+                    found_all = True
 
-            except IndexError:  # error; no videos found. dont print anything
-                foundAll = True
+            except IndexError:  # error; no videos found. don't print anything
+                found_all = True
 
-        return retVal
+        return ret_val
 
-    def getLastXDaysVideos(self, last_x_days):
-        todayDate = datetime.now()
-        previousDate = datetime.now() - timedelta(days=last_x_days)
+    def get_previous_days_video(self, previous_days):
+        current_date = datetime.now()
+        previous_date = datetime.now() - timedelta(days=previous_days)
 
-        return self._getVideosBetween(previousDate, todayDate)
+        return self._get_videos_between(previous_date, current_date)
 
-    def getVideosSince(self, sinceDate):
+    def get_videos_since(self, since_date):
         """
         sinceDate = datetime.datetime object
         """
 
-        todayDate = datetime.now()
-        return self._getVideosBetween(sinceDate, todayDate)
+        current_date = datetime.now()
+        return self._get_videos_between(since_date, current_date)
 
-    def getAllVideos(self):
-        firstDate = datetime(year=2005, month=4, day=22)  # first youtube video -1
-        todayDate = datetime.now()
+    def get_all_videos(self):
+        first_youtube_video = datetime(year=2005, month=4, day=22)  # first youtube video -1
+        current_date = datetime.now()
 
-        return self._getVideosBetween(firstDate, todayDate)
+        return self._get_videos_between(first_youtube_video, current_date)
 
 
 class Video:
-    def __init__(self, videoId):
-        self.videoId = videoId
+    def __init__(self, video_id):
+        self.videoId = video_id
 
-    def getData(self, parseDuration=True, parseDate=True):
+    def get_data(self, parse_duration=True, parse_date=True):
         try:
             results = {}
             url = requestVideoInfo.format(self.videoId)
             resp = urllib.request.urlopen(url).read().decode("utf8")
 
-            jsonResp = json.loads(resp)
-            snippet = jsonResp["items"][0]["snippet"]
+            json_resp = json.loads(resp)
+            snippet = json_resp["items"][0]["snippet"]
             results["title"] = snippet["title"]
             results["date"] = snippet["publishedAt"]
             results["description"] = snippet["description"]
@@ -122,10 +135,10 @@ class Video:
             # need to create different request for duration
             url = requestVideoTime.format(self.videoId)
             resp = urllib.request.urlopen(url).read().decode("utf8")
-            jsonResp = json.loads(resp)
-            duration = jsonResp["items"][0]["contentDetails"]["duration"]
+            json_resp = json.loads(resp)
+            duration = json_resp["items"][0]["contentDetails"]["duration"]
 
-            if parseDuration:
+            if parse_duration:
                 # parses iso 8601 duration manually
                 digits = re.findall(r"\d+", duration)
                 times = ["seconds", "minutes", "hours"]
@@ -135,23 +148,22 @@ class Video:
                     res.append("{} {},".format(digit, time))
 
                 res.reverse()  # start with biggest unit
-                parsedDuration = " ".join(res)[:-1]  # omit last colon
-                results["duration"] = parsedDuration
+                parsed_duration = " ".join(res)[:-1]  # omit last colon
+                results["duration"] = parsed_duration
             else:
                 results["duration"] = duration
 
-            if parseDate:
+            if parse_date:
                 # 2016-12-17T14:54:05.000Z --> 14:54  12.12.2016
                 digits = re.findall(r"\d+", results["date"])
-                parsedDate = "{hours}:{minutes}  {day}.{month}.{year}".format(
+                parsed_date = "{hours}:{minutes}  {day}.{month}.{year}".format(
                     hours=digits[3], minutes=digits[4], day=digits[2], month=digits[1], year=digits[0]
                 )
 
-                results["date"] = parsedDate
+                results["date"] = parsed_date
 
-            # we don't need else here since unparsed date is already in results dict
+            # we don't need else here since un-parsed date is already in results dict
             return results
-
 
         except IndexError:
             print("ERROR: Finding video data for video {}".format(self.videoId))
