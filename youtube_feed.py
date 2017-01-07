@@ -1,74 +1,77 @@
-from my_youtube_api import Channel, Video
-from os.path import getmtime
-from datetime import datetime, timedelta
+import youtube_api as ya
 
-FILENAME = "channels.txt"
+import datetime as dt
+
+from xml.etree import ElementTree
+from urllib.parse import urlparse
 
 
-def process_file(filename, get_date_update_timestamp=True):
+def process_file(subscription_feed):
     """
-    returns tuple(
-        datetime object,
-        dictionary - channel:id
-        )
-
+    Given a Youtube Subscription Manager RSS XML file, return a dictionary of the channel names and IDs
+    :param subscription_feed: file name of the subscription feed within the working folder
+    :return: { Channel Name : Channel ID }
     """
     channels = {}
-    with open(filename, "r") as f:
-        lines = f.readlines()
+    with open(subscription_feed, mode='r', encoding="utf8") as readfile:
+        root = ElementTree.parse(readfile).getroot()
+        for child in root[0][0]:
+            channels[child.attrib['title']] = urlparse(child.attrib['xmlUrl']).query[11:]
 
-        for line in lines:
-            try:  # explicit channel Id
-                channel_name, channel_id = line.strip().split(" ### ")
-                channels[channel_name] = channel_id
-            except ValueError:
-                channel_name = line.strip()
-                channels[channel_name] = 0
-
-    date = None
-    if get_date_update_timestamp:
-        last_modification = getmtime(filename)
-        date = datetime.fromtimestamp(last_modification)
-        with open(filename, "w") as f:
-            for line in lines:
-                f.write(line)  # rewrite lines to change last modification date
-
-    return date, channels
+    return channels
 
 
-def getNewVideos(last_x_days=None):
-    if last_x_days:
-        date, channels = process_file(FILENAME, get_date_update_timestamp=False)
-        date = datetime.today() - timedelta(days=last_x_days)
-    else:
-        date, channels = process_file(FILENAME, get_date_update_timestamp=True)
+def process_feed_from(api_key, date, channels):
+    """
+    Gets all the videos from the channels given
+    :param api_key: String with the Youtube API key
+    :param date: datetime object with the starting date in the past
+    :param channels: Dictionary in format - { channel name : channel id }
+    :return: dictionary of format
+        {
+            Publish Date : {
+                Channel Name: {
+                    Video Title : Video URL
+                }
+            }
+        }
+    """
 
-    print("Getting videos since: {}".format(date.strftime("%H:%M  %d.%m.%Y")))
-    for channelName, chId in sorted(channels.items()):  # alphabetical order
+    date = dt.datetime.strptime(date, '%Y-%m-%d')
+    video_list = {}
+    for channel_name, chId in sorted(channels.items()):  # alphabetical order
         # create Channel objects for every channel, assign an ID unless explicitly specified in file
-        if chId == 0:
-            chan = Channel(channelName)
-            chan.setChannelId()
-        else:
-            chan = Channel(channelName, channel_id=chId)
+        chan = ya.Channel(api_key, channel_name, channel_id=chId)
 
-        print("\n" + "*" * 40 + " \n{}\n".format(channelName) + "*" * 40)
-        videos = chan.getVideosSince(date)
+        videos = chan.get_videos_since(date)
         for videoId in videos:
-            vid = Video(videoId)
-            data = vid.getData()
-            try:
-                print("   {}\n   {} ; {}\n   {}\n   {}\n\n".format(data["title"], data["date"], data["duration"],
-                                                                   data["url"], data["description"].split("\n")[0]))
-            except UnicodeError:  # unicode error - running in Command Line (fixed in Python 3.6)
-                print("   {}\n   {}\n   {}\n    \n    -Unable to display more informtaion\n\n".format(data["date"],
-                                                                                                      data["duration"],
-                                                                                                      data["url"]))
-        if len(videos) == 0:
-            print("   No videos found in this time period :(\n")
+            vid = ya.Video(api_key, videoId)
+            data = vid.get_data()
 
-    input("\nPress enter to exit. ")
+            data['date'] = str(data['date'].date())
+            if data['date'] not in video_list:
+                video_list[data['date']] = {channel_name: {data["title"]: data["video id"]}}
+            else:
+                if channel_name not in video_list[data['date']]:
+                    video_list[data['date']][channel_name] = {data["title"]: data["video id"]}
+                else:
+                    video_list[data['date']][channel_name][data["title"]] = data["video id"]
+
+    return video_list
 
 
-if __name__ == "__main__":
-    getNewVideos()
+def add_to_playlist(client_secret_file, playlist_id, video_id):
+    youtube_service = ya.YoutubeClientAPI(client_secret_file).get_authenticated_service()
+    add_video_request = youtube_service.playlistItems().insert(
+        part="snippet",
+        body={
+            'snippet': {
+                'playlistId': playlist_id,
+                'resourceId': {
+                    'kind': 'youtube#video',
+                    'videoId': video_id
+                }
+                # 'position': 0
+            }
+        }
+    ).execute()

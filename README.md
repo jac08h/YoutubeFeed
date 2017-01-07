@@ -1,48 +1,25 @@
 # Description
 Find new videos on your favourite Youtube channels since last time you checked.
-You have to obtain your own Youtube API key to use this program.
+You have to obtain your own Youtube API key to get videos and you will need to get your own client secret file to add those videos to your Watch Later playlist
 
 # How to Use
-1. Clone/download repository
-2. In "channels.txt" write YT channels you want to "subscribe" to.
-3. In "youtube_feed.py" write your Youtube API key on 7th line(apiKey="YOUR_KEY")
-3. Run youtube_feed.py
+##Using the Source
+1. Clone/download repository  
+2. Setup the utility as shown below  
+3. Run gui_main.py  
 
-## Example output
-    Last checked: 13:07  31.12.2016
-    
-    **************************************** 
-    Computerphile
-    ****************************************
-       Dijkstra's Algorithm - Computerphile
-       17:22  04.01.2017 ; 10 minutes, 43 seconds
-       https://www.youtube.com/watch?v=GazC3A4OQTE
-       Dijkstra's Algorithm finds the shortest path between two points. Dr Mike Pound explains how it works.
-   
-    ****************************************   
-    Daniel Shiffman
-    ****************************************
-       No videos found in this time period :(
+##Using the windows compiled executable
+1. Download the release  
+2. Setup the utility as shown below  
+3. Run YoutubeFeed.exe  
 
-        
-        
-        Press enter to exit. 
+##Setup the utility
+1. Follow the "Create your project and select API services" instructions on the [Obtaining authorization credentials](https://developers.google.com/youtube/registering_an_application)  
+2. Copy the API Key string to the "API Key" entry in the settings.json file
+3. Download the OAuth 2.0 client IDs to your YoutubeFeed folder and add the client_secret file name to the "Client Secret File" entry in the settings.json file
+4. Follow the "Get RSS updates for all subscriptions" on the [Use RSS with YouTube](https://support.google.com/youtube/answer/6224202?hl=en) page to download the "subscription_manager.xml" file to your YoutubeFeed folder
 
-### Misc
-
-
-The channel names are not always exactly what you see. You can get channel name by navigating to channel's page.
-
-E.G.: Say you want to add channel "Smarter Every Day" to your feed. Go to channel's page on youtube and copy the part in URL after "/user/". In this example URL would be "https://www.youtube.com/user/destinws2" so you add "destinws2" to your "channels.txt" file.
-
-
-Is also available to add channels which have ID in URL. In "channels.txt" add:
-
-[CHANNEL_NAME][SPACE][###][SPACE][CHANNEL_ID] where [CHANNEL_ID] is the number you see on channel's page.
-
-E.G. : When you go to channel Daniel Shiffman, you can see directly it's id in URL. So you add to "channels.txt":
-    
-    Daniel Shiffman ### UCvjgXvBlbQiydffZU7m1_aw
-    
-
-To use this program, you have to obtain Youtube API key. If you are not sure how to do that, follow this link: https://www.slickremix.com/docs/get-api-key-for-youtube/
+# Shortcuts and Actions
+1. Check Channel Feed [Ctrl + 1] - Recheck the channels specified in the "subscription_manager.xml" file for new videos published since the Last Checked Date  
+2. Update Date [Ctrl + 2] - Update the Last Checked Date to the current date  
+3. Add to Watch Later [Ctrl + 3] - Add the videos shown in the utility to your Watch Later playlist. Progress is shown in the progress bar next to the button. After it's finished, the Last Checked date is updated to the current date.  

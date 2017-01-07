@@ -1,26 +1,94 @@
 import urllib.request
-from urllib.error import HTTPError
 import json
-import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
-apiKey = None  # Write your Youtube API key here. "your_key"
-# https://www.slickremix.com/docs/get-api-key-for-youtube/
+import httplib2
+import os
+import sys
 
-youtubeApiUrl = "https://www.googleapis.com/youtube/v3"
-youtubeChannelsApiUrl = youtubeApiUrl + "/channels?key={0}&".format(apiKey)
-youtubeSearchApiUrl = youtubeApiUrl + "/search?key={0}&".format(apiKey)
-youtubeVideoApi = youtubeApiUrl + "/videos?key={0}&".format(apiKey)
+from googleapiclient.discovery import build
+from oauth2client.client import flow_from_clientsecrets
+from oauth2client.file import Storage
+from oauth2client.tools import run_flow
 
-requestParametersChannelId = youtubeChannelsApiUrl + 'forUsername={0}&part=id'
-requestChannelVideosInfo = youtubeSearchApiUrl + 'channelId={0}&part=id&order=date&type=video&publishedBefore={1}&publishedAfter={2}&pageToken={3}&maxResults=50'
-requestVideoInfo = youtubeVideoApi + "part=snippet&id={0}"
-requestVideoTime = youtubeVideoApi + "part=contentDetails&id={0}"
+
+class YoutubeAPIURL:
+    def __init__(self, api_key):
+        self.youtubeApiUrl = "https://www.googleapis.com/youtube/v3"
+        self.youtubeChannelsApiUrl = self.youtubeApiUrl + "/channels?key={0}&".format(api_key)
+        self.youtubeSearchApiUrl = self.youtubeApiUrl + "/search?key={0}&".format(api_key)
+        self.youtubeVideoApi = self.youtubeApiUrl + "/videos?key={0}&".format(api_key)
+
+        self.requestParametersChannelId = self.youtubeChannelsApiUrl + 'forUsername={0}&part=id'
+        self.requestChannelVideosInfo = self.youtubeSearchApiUrl + 'channelId={0}&' \
+                                                                    'part=id&' \
+                                                                    'order=date&' \
+                                                                    'type=video&' \
+                                                                    'publishedBefore={1}&' \
+                                                                    'publishedAfter={2}&' \
+                                                                    'pageToken={3}&' \
+                                                                    'maxResults=50'
+        self.requestVideoInfo = self.youtubeVideoApi + "part=snippet&id={0}"
+
+
+class YoutubeClientAPI:
+    def __init__(self, client_secrets_file):
+        # The CLIENT_SECRETS_FILE variable specifies the name of a file that contains
+        # the OAuth 2.0 information for this application, including its client_id and
+        # client_secret. You can acquire an OAuth 2.0 client ID and client secret from
+        # the Google Cloud Console at
+        # https://cloud.google.com/console.
+        # Please ensure that you have enabled the YouTube Data API for your project.
+        # For more information about using OAuth2 to access the YouTube Data API, see:
+        #   https://developers.google.com/youtube/v3/guides/authentication
+        # For more information about the client_secrets.json file format, see:
+        #   https://developers.google.com/api-client-library/python/guide/aaa_client_secrets
+
+        self.CLIENT_SECRETS_FILE = client_secrets_file
+
+        # This variable defines a message to display if the CLIENT_SECRETS_FILE is
+        # missing.
+        self.MISSING_CLIENT_SECRETS_MESSAGE = """
+           WARNING: Please configure OAuth 2.0
+
+           To make this sample run you will need to populate the client_secrets.json file
+           found at:
+
+           %s
+
+           with information from the Cloud Console
+           https://cloud.google.com/console
+
+           For more information about the client_secrets.json file format, please visit:
+           https://developers.google.com/api-client-library/python/guide/aaa_client_secrets
+           """ % os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                              client_secrets_file))
+
+        # This OAuth 2.0 access scope allows for full read/write access to the
+        # authenticated user's account.
+        self.YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube"
+        self.YOUTUBE_API_SERVICE_NAME = "youtube"
+        self.YOUTUBE_API_VERSION = "v3"
+
+        self.flow = flow_from_clientsecrets(self.CLIENT_SECRETS_FILE,
+                                            scope=self.YOUTUBE_SCOPE,
+                                            message=self.MISSING_CLIENT_SECRETS_MESSAGE)
+
+        self.storage = Storage("%s-oauth2.json" % sys.argv[0])
+        self.credentials = self.storage.get()
+
+        if self.credentials is None or self.credentials.invalid:
+            self.credentials = run_flow(self.flow, self.storage)
+
+    def get_authenticated_service(self):
+        return build(self.YOUTUBE_API_SERVICE_NAME,
+                     self.YOUTUBE_API_VERSION,
+                     http=self.credentials.authorize(httplib2.Http()))
 
 
 class Channel:
-    def __init__(self, channel_name, channel_alias=None, channel_id=None):
-
+    def __init__(self, api_key, channel_name, channel_alias=None, channel_id=None):
+        self.youtubeAPIURL = YoutubeAPIURL(api_key)
         self.channelName = channel_name
         self.channelAlias = channel_alias
         self.channelId = channel_id
@@ -35,119 +103,91 @@ class Channel:
                                                                               self.channelAlias,
                                                                               self.channelId)
 
-    def setChannelId(self):
-        try:
-            url = requestParametersChannelId.format(self.channelName)
-            resp = urllib.request.urlopen(url).read().decode("utf8")
-
-            jsonResp = json.loads(resp)
-            self.channelId = jsonResp["items"][0]["id"]
-        except KeyError:
-            print("ERROR setting ID for channel: {}".format(self.channelName))
-            self.channelId = "error"
-
-    def _getVideosBetween(self, since_date, to_date):
+    def _get_videos_between(self, from_date, to_date):
         """
         dates= datetime.datetime objects
+
+        :param from_date: Earliest date
+        :param to_date: Latest date
+        :return:
         """
         # format dates
-        since_date = since_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+        from_date = from_date.strftime("%Y-%m-%dT%H:%M:%SZ")
         to_date = to_date.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-        nextPToken = ""
-        foundAll = False
+        next_page_token = ""
+        found_all = False
 
-        retVal = []
+        ret_val = []
 
-        while not foundAll:
+        while not found_all:
             try:
-                req = requestChannelVideosInfo.format(self.channelId, to_date, since_date, nextPToken)
-                with urllib.request.urlopen(req) as response:
-                    html = response.read()
+                url = self.youtubeAPIURL.requestChannelVideosInfo.format(self.channelId,
+                                                                         to_date,
+                                                                         from_date,
+                                                                         next_page_token)
+                resp = urllib.request.urlopen(url).read().decode("utf8")
 
-                jsonResp = json.loads(html)
-                returnedVideos = jsonResp["items"]
+                json_resp = json.loads(resp)
+                returned_videos = json_resp["items"]
 
-                for video in returnedVideos:
-                    retVal.append(video["id"]["videoId"])
+                for video in returned_videos:
+                    ret_val.append(video["id"]["videoId"])
 
                 try:
-                    nextPToken = jsonResp["nextPageToken"]
+                    next_page_token = json_resp["nextPageToken"]
 
                 except KeyError:  # no nextPageToken
-                    foundAll = True
+                    found_all = True
 
-            except HTTPError:
-                print("Bad request.")
+            except IndexError:  # error; no videos found. don't print anything
+                found_all = True
 
-            except IndexError:  # error; no videos found. dont print anything
-                foundAll = True
+        return ret_val
 
-        return retVal
-
-    def getVideosSince(self, since_date):
+    def get_videos_since(self, since_date):
         """
         sinceDate = datetime.datetime object
         """
 
-        todayDate = datetime.now()
-        return self._getVideosBetween(since_date, todayDate)
+        current_date = datetime.now()
+        return self._get_videos_between(since_date, current_date)
 
-    def getAllVideos(self):
-        firstDate = datetime(year=2005, month=4, day=22)  # first youtube video -1
-        todayDate = datetime.now()
+    def get_all_videos(self):
+        first_youtube_video = datetime(year=2005, month=4, day=22)  # first youtube video -1
+        current_date = datetime.now()
 
-        return self._getVideosBetween(firstDate, todayDate)
+        return self._get_videos_between(first_youtube_video, current_date)
 
 
 class Video:
-    def __init__(self, video_id):
+    def __init__(self, api_key, video_id):
+        self.youtubeAPIURL = YoutubeAPIURL(api_key)
         self.videoId = video_id
 
-    def getData(self, parse_duration=True, parse_date=True):
+    def get_data(self):
+        """
+        :return: dictionary in format
+            {
+                'date' : Published Date (datetime object),
+                'description' : Video Description,
+                'title' : Video Title,
+                'url' : Video ID
+            }
+        """
         try:
             results = {}
-            url = requestVideoInfo.format(self.videoId)
+            url = self.youtubeAPIURL.requestVideoInfo.format(self.videoId)
             resp = urllib.request.urlopen(url).read().decode("utf8")
 
-            jsonResp = json.loads(resp)
-            snippet = jsonResp["items"][0]["snippet"]
-            results["title"] = snippet["title"]
-            results["date"] = snippet["publishedAt"]
+            json_resp = json.loads(resp)
+            snippet = json_resp["items"][0]["snippet"]
             results["description"] = snippet["description"]
-            results["url"] = "https://www.youtube.com/watch?v={}".format(self.videoId)
+            results["title"] = snippet["title"]
+            results["video id"] = self.videoId
+            results["date"] = datetime.strptime(snippet["publishedAt"], '%Y-%m-%dT%H:%M:%S.000Z')
 
-            # need to create different request for duration
-            url = requestVideoTime.format(self.videoId)
-            resp = urllib.request.urlopen(url).read().decode("utf8")
-            jsonResp = json.loads(resp)
-            duration = jsonResp["items"][0]["contentDetails"]["duration"]
-
-            if parse_duration:
-                # parses iso 8601 duration manually
-                digits = re.findall(r"\d+", duration)
-                times = ["seconds", "minutes", "hours"]
-                res = []
-
-                for digit, time in zip(digits[::-1], times):
-                    res.append("{} {},".format(digit, time))
-
-                res.reverse()  # start with biggest unit
-                parsedDuration = " ".join(res)[:-1]  # omit last colon
-                results["duration"] = parsedDuration
-            else:
-                results["duration"] = duration
-
-            if parse_date:
-                # 2016-12-17T14:54:05.000Z --> 14:54  12.12.2016
-                digits = re.findall(r"\d+", results["date"])
-                parsedDate = "{hours}:{minutes}  {day}.{month}.{year}".format(
-                    hours=digits[3], minutes=digits[4], day=digits[2], month=digits[1], year=digits[0]
-                )
-
-                results["date"] = parsedDate
-
-            # no need for else as unparsed date is already in results dict
+            # we don't need else here since un-parsed date is already in results dict
             return results
 
         except IndexError:
