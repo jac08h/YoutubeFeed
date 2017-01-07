@@ -7,5 +7,3 @@ build/
 *.json
 *.xml
 test.py
-my_youtube_api.py
-my_youtube_feed.py

@@ -65,10 +65,7 @@ class MainWindow(QtGui.QMainWindow, form_main):
             error_message("No Last Checked Date.\nCheck settings.json file.")
 
         self.reset_treeview_model()
-        self.videos = {'2017-01-07': {'Northernlion': {
-            'The Northernlion Live Super Show [January 5th, 2017]': '2kt_GI8-SZM',
-            'The Binding of Isaac: AFTERBIRTH+ - Northernlion Plays - Episode 7 [Seedier]': 'El8Ta46Bp8M'}}}
-        # self.videos = yf.process_feed_from(api_key, last_checked_date, self.channels)
+        self.videos = yf.process_feed_from(api_key, last_checked_date, self.channels)
 
         for publish_date in sorted(self.videos):
             date = QtGui.QStandardItem(dt.datetime.strptime(publish_date, '%Y-%m-%d').strftime('%m/%d/%y'))

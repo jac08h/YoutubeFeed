@@ -18,8 +18,13 @@ class Settings:
             if not all(key in self.data.keys() for key in ('API Key', 'Client Secret File', 'Last Checked')):
                 self.data = {'API Key': '', 'Client Secrets File': '', 'Last Checked': str(dt.date.today())}
                 self.write()
+
+            if not self.data['Last Checked']:
+                self.data['Last Checked'] = str(dt.date.today())
+                self.write()
+
         else:
-            self.data = {'API Key': '', 'Last Checked': str(dt.date.today())}
+            self.data = {'API Key': '', 'Client Secrets File': '', 'Last Checked': str(dt.date.today())}
             self.write()
 
     def new(self):
