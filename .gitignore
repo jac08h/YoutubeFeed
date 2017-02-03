@@ -3,7 +3,7 @@ __pycache__/
 *$py.class
 .idea
 test.py
-my_channels.txt
-my_youtube_api.py
-my_youtube_feed.py
+my_settings.json
+
+
 

@@ -1,0 +1,7 @@
+{
+  "api_key" : "",
+  "channels" : [
+    {"name":"sentdex", "id":"", "alias":""},
+    {"name":"Computerphile", "id":"", "alias":""}
+  ]
+}

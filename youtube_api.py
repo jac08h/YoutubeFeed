@@ -4,8 +4,11 @@ import json
 import re
 from datetime import datetime
 
-apiKey = None  # Write your Youtube API key here. "your_key"
-# https://www.slickremix.com/docs/get-api-key-for-youtube/
+FILENAME = "my_settings.json"
+
+with open(FILENAME) as data_file:
+    data = json.load(data_file)
+apiKey = data["api_key"]
 
 youtubeApiUrl = "https://www.googleapis.com/youtube/v3"
 youtubeChannelsApiUrl = youtubeApiUrl + "/channels?key={0}&".format(apiKey)
