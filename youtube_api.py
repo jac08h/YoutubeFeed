@@ -3,17 +3,14 @@ from urllib.error import HTTPError
 import json
 import re
 from datetime import datetime
+import settings_api
 
-FILENAME = "my_settings.json"
-
-with open(FILENAME) as data_file:
-    data = json.load(data_file)
-apiKey = data["api_key"]
+api_key = settings_api.get_key()
 
 youtubeApiUrl = "https://www.googleapis.com/youtube/v3"
-youtubeChannelsApiUrl = youtubeApiUrl + "/channels?key={0}&".format(apiKey)
-youtubeSearchApiUrl = youtubeApiUrl + "/search?key={0}&".format(apiKey)
-youtubeVideoApi = youtubeApiUrl + "/videos?key={0}&".format(apiKey)
+youtubeChannelsApiUrl = youtubeApiUrl + "/channels?key={0}&".format(api_key)
+youtubeSearchApiUrl = youtubeApiUrl + "/search?key={0}&".format(api_key)
+youtubeVideoApi = youtubeApiUrl + "/videos?key={0}&".format(api_key)
 
 requestParametersChannelId = youtubeChannelsApiUrl + 'forUsername={0}&part=id'
 requestChannelVideosInfo = youtubeSearchApiUrl + 'channelId={0}&part=id&order=date&type=video&publishedBefore={1}&publishedAfter={2}&pageToken={3}&maxResults=50'

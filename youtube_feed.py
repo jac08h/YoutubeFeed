@@ -1,9 +1,10 @@
-from youtube_api import Channel, Video, data
+from youtube_api import Channel, Video
 from datetime import datetime, timedelta
-import os
+import settings_api
+import sys
 
 
-def get_data():
+def get_data(update_date=True):
     """
     returns tuple(
         datetime object,
@@ -11,21 +12,23 @@ def get_data():
         )
 
     """
-    try:
-        mtime = os.path.getmtime(__file__)  # last running time of program
-
-    except OSError:
-        mtime = 0
+    data = settings_api.get_all()
+    if len(data["last_date"]) == 0:  # first time
+        last_date = datetime.now()
+    else:
+        last_date = datetime.strptime(data["last_date"], "%Y-%m-%d %H:%M:%S.%f")
 
     channels = data["channels"]
-    last_modified_date = datetime.fromtimestamp(mtime)
 
-    return last_modified_date, channels
+    if update_date:
+        settings_api.update_date(data, datetime.now())
+
+    return last_date, channels
 
 
 def getNewVideos(last_x_days=None):
     """
-    ast_x_days: get videos from last X days
+    last_x_days: get videos from last X days (int)
     """
     if last_x_days:
         _, channels_list = get_data()
@@ -65,4 +68,9 @@ def getNewVideos(last_x_days=None):
 
 
 if __name__ == "__main__":
-    getNewVideos()
+    try:
+        getNewVideos(int(sys.argv[1]))
+    except IndexError:
+        getNewVideos()
+    except ValueError:
+        raise ValueError("Invalid number.")
