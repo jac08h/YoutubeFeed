@@ -3,7 +3,4 @@ __pycache__/
 *$py.class
 .idea
 test.py
-my_settings.json
-
-
-
+settings_personal.json

@@ -1,7 +1,8 @@
-from youtube_api import Channel, Video
-from datetime import datetime, timedelta
-import settings_api
 import sys
+from datetime import datetime, timedelta
+
+import settings_api
+from youtube_api import Channel, Video
 
 
 def get_data(update_date=True):
@@ -45,7 +46,7 @@ def getNewVideos(last_x_days=None):
         if len(chId) == 0:
             chan.setChannelId()
 
-        print("\n" + "*" * 40 + " \n{}\n".format(name) + "*" * 40)
+        print("\n" + "*" * 40 + " \n{}\n".format(chan.getAliasOrName()) + "*" * 40)
         videos = chan.getVideosSince(date)
         for videoId in videos:
             vid = Video(videoId)
