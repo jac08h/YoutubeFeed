@@ -17,7 +17,8 @@ def get_data(update_date=True):
     if len(data["last_date"]) == 0:  # first time
         last_date = datetime.now()
     else:
-        last_date = datetime.strptime(data["last_date"], "%Y-%m-%d %H:%M:%S.%f")
+        last_date = datetime.strptime(
+            data["last_date"], "%Y-%m-%d %H:%M:%S.%f")
 
     channels = data["channels"]
 
@@ -40,8 +41,10 @@ def getNewVideos(last_x_days=None):
     print("Getting videos since {}".format(date.strftime("%H:%M  %d.%m.%Y")))
     for channel_dict in channels_list:
 
-        # create Channel objects for every channel, assign an ID unless explicitly specified in file
+        # create Channel objects for every channel, assign an ID unless
+        # explicitly specified in file
         name, alias, chId = channel_dict["name"], channel_dict["alias"], channel_dict["id"]
+
         chan = Channel(name, alias, chId)
         if len(chId) == 0:
             chan.setChannelId()
@@ -56,15 +59,15 @@ def getNewVideos(last_x_days=None):
                                                                    video_data["duration"],
                                                                    video_data["url"],
                                                                    video_data["description"].split("\n")[0]))
-            except UnicodeError:  # unicode error - running in Command Line (fixed in Python 3.6)
+            # unicode error - running in Command Line (fixed in Python 3.6)
+            except UnicodeError:
                 print(
                     "   {}\n   {}\n   {}\n    \n    -Unable to display more informtaion\n\n".format(video_data["date"],
                                                                                                     video_data[
                                                                                                         "duration"],
                                                                                                     video_data["url"]))
-        if len(videos) == 0:
-            print("   No videos found in this time period :(\n")
-
+        if len(videos) == 0:            
+            print('¯\_(ツ)_/¯')
     input("\nPress enter to exit. ")
 
 
